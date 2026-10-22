@@ -190,7 +190,7 @@ O relatório conecta-se ao PostgreSQL (`localhost:5432`, banco `ans_dw`) em modo
 
 ![Modelo no Power BI](docs/modelo.png)
 
-![Relatório no Power BI](docs/powerbi.png)
+![Relatório no Power BI](docs/relatorio.png)
 
 O arquivo `.pbix` não é versionado, por conter os dados importados.
 
