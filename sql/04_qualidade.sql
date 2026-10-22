@@ -76,3 +76,41 @@ FROM (
     WHERE faixa_etaria_ordem = 99
       AND de_faixa_etaria NOT LIKE 'Informada Incorr%'
 ) v;
+
+-- 4) Reconciliação das medidas: soma no staging x soma na fato, por competência
+WITH stg AS (
+    SELECT id_cmpt_movel AS ano_mes,
+           sum(qt_beneficiario_ativo::integer)     AS ativos,
+           sum(qt_beneficiario_aderido::integer)   AS aderidos,
+           sum(qt_beneficiario_cancelado::integer) AS cancelados
+    FROM stg_beneficiarios
+    GROUP BY id_cmpt_movel
+),
+fat AS (
+    SELECT t.ano_mes,
+           sum(f.qt_beneficiario_ativo)     AS ativos,
+           sum(f.qt_beneficiario_aderido)   AS aderidos,
+           sum(f.qt_beneficiario_cancelado) AS cancelados
+    FROM fato_beneficiarios f
+    JOIN dim_tempo t ON t.tempo_sk = f.tempo_sk
+    GROUP BY t.ano_mes
+)
+SELECT s.ano_mes,
+       s.ativos    AS ativos_staging,    f.ativos    AS ativos_fato,
+       s.aderidos  AS aderidos_staging,  f.aderidos  AS aderidos_fato,
+       s.cancelados AS cancelados_staging, f.cancelados AS cancelados_fato,
+       CASE WHEN s.ativos     = f.ativos
+             AND s.aderidos   = f.aderidos
+             AND s.cancelados = f.cancelados
+            THEN 'OK' ELSE 'FALHA' END AS status
+FROM stg s
+LEFT JOIN fat f ON f.ano_mes = s.ano_mes
+ORDER BY s.ano_mes;
+
+-- 5) Medidas inválidas na fato: valores negativos
+SELECT count(*) AS linhas_com_medida_negativa,
+       CASE WHEN count(*) = 0 THEN 'OK' ELSE 'FALHA' END AS status
+FROM fato_beneficiarios
+WHERE qt_beneficiario_ativo < 0
+   OR qt_beneficiario_aderido < 0
+   OR qt_beneficiario_cancelado < 0;
