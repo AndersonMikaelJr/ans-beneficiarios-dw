@@ -159,3 +159,24 @@ SELECT nm_municipio,
 FROM ranqueado
 WHERE posicao = 1
 ORDER BY total_municipio DESC;
+
+-- ---------------------------------------------------------------------
+-- Q7. Como os beneficiários ativos se distribuem por tipo de contratação
+--     e segmentação do plano na competência mais recente?
+-- ---------------------------------------------------------------------
+WITH ultima AS (
+    SELECT MAX(t.ano_mes) AS ano_mes
+    FROM fato_beneficiarios f
+    JOIN dim_tempo t ON t.tempo_sk = f.tempo_sk
+)
+SELECT p.de_contratacao_plano,
+       p.de_segmentacao_plano,
+       SUM(f.qt_beneficiario_ativo) AS ativos,
+       ROUND(100.0 * SUM(f.qt_beneficiario_ativo)
+             / SUM(SUM(f.qt_beneficiario_ativo)) OVER (), 2) AS participacao_pct
+FROM fato_beneficiarios f
+JOIN dim_tempo t ON t.tempo_sk = f.tempo_sk
+JOIN dim_plano p ON p.plano_sk = f.plano_sk
+JOIN ultima u    ON u.ano_mes = t.ano_mes
+GROUP BY p.de_contratacao_plano, p.de_segmentacao_plano
+ORDER BY ativos DESC;
